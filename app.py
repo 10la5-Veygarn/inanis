@@ -1,4 +1,11 @@
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import (  # pyright: ignore[reportMissingImports]
+    Flask,
+    flash,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 
 from document import Document
 
