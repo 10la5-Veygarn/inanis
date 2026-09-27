@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}{{ doc.name }} — Inanis{% endblock %}
+
+{% block content %}
+    <div class="editor-toolbar">
+        <form class="rename-form"
+              action="{{ url_for('rename', filename=doc.name ~ '.' ~ doc.ext) }}"
+              method="post">
+            <input type="text" name="new_name" value="{{ doc.name }}"
+                   aria-label="Document name" {% if is_new %}disabled title="Save the document before renaming"{% endif %}>
+            <button type="submit" class="link-button" {% if is_new %}disabled{% endif %}>Rename</button>
+        </form>
+
+        <div class="stats">
+            <span id="word-count">0</span> words
+            <span class="stats-sep">·</span>
+            <span id="reading-time">{{ "%.1f"|format(reading_time) }}</span> min read
+        </div>
+    </div>
+
+    <form id="save-form"
+          action="{{ url_for('save', filename=doc.name ~ '.' ~ doc.ext) }}"
+          method="post">
+        <textarea id="content" name="content" spellcheck="true"
+                  placeholder="Start writing…">{{ doc.content }}</textarea>
+        <input type="hidden" name="is_new" value="{{ '1' if is_new else '0' }}">
+        <div class="save-row">
+            <button type="submit" class="button">Save</button>
+            <span id="save-hint" class="save-hint"></span>
+        </div>
+    </form>
+
+    <script src="{{ url_for('static', filename='editor.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Inanis — Documents{% endblock %}
+
+{% block content %}
+    <div class="page-header">
+        <h1>Your documents</h1>
+        <a class="button" href="{{ url_for('new_document') }}">New document</a>
+    </div>
+
+    {% if documents %}
+        <ul class="doc-list">
+            {% for filename in documents %}
+                <li>
+                    <a href="{{ url_for('edit', filename=filename) }}">{{ filename }}</a>
+                    <form action="{{ url_for('delete', filename=filename) }}"
+                          method="post"
+                          onsubmit="return confirm('Delete {{ filename }}?');">
+                        <button type="submit" class="link-button">Delete</button>
+                    </form>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <p class="empty-state">No documents yet. Start with a new one.</p>
+    {% endif %}
+{% endblock %}
