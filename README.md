@@ -12,7 +12,7 @@ A small Flask-based WYSIWYG document editor.
 ## To run this:
 
 ```bash
-git clone
+git clone https://github.com/10la5-Veygarn/inanis.git
 cd inanis
 ```
 

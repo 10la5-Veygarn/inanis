@@ -1,6 +1,7 @@
 import datetime
 import re
 from pathlib import Path
+from typing import ClassVar
 
 path = Path.home() / "Documents" / "Inanis"
 
@@ -12,7 +13,7 @@ except (PermissionError, OSError) as e:
 
 class Document:
     _default_location = path
-    _known_extensions = {"txt"}
+    _known_extensions: ClassVar[set[str]] = {"txt"}
 
     def __init__(self, name=None, ext="txt"):
         if name is None:
@@ -31,7 +32,7 @@ class Document:
 
         self.content = ""
         self.word_count = 0
-        self._init_time = datetime.datetime.now()
+        self._init_time = datetime.datetime.now().astimezone()
         self.ext = ext
         self._file_path = None
 
@@ -198,7 +199,7 @@ class Document:
         try:
             doc.content = file_path.read_text(encoding="utf-8")
         except (PermissionError, OSError, UnicodeDecodeError) as e:
-            raise type(e)(f"Could not read document: {e}") from e
+            raise OSError(f"Could not read document: {e}") from e
 
         doc.word_counter()
         doc._file_path = file_path
