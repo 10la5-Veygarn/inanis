@@ -1,4 +1,4 @@
-from flask import (  # pyright: ignore[reportMissingImports]
+from flask import (
     Flask,
     flash,
     redirect,
