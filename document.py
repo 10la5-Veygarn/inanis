@@ -94,7 +94,7 @@ class Document:
 
         save_path = self._get_available_path()
         try:
-            save_path.write_text(self.content, encoding="utf-8")
+            save_path.write_text(self.content, encoding="utf-8", newline="")
         except (PermissionError, OSError) as e:
             raise OSError(f"Could not save document: {e}") from e
 
