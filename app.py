@@ -58,7 +58,6 @@ def edit(filename):
 @app.route("/save/<filename>", methods=["POST"])
 def save(filename):
     content = request.form.get("content", "")
-    print(repr(content))
     is_new = request.form.get("is_new") == "1"
 
     name, _, ext = filename.rpartition(".")
