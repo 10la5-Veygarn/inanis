@@ -94,7 +94,8 @@ class Document:
 
         save_path = self._get_available_path()
         try:
-            save_path.write_text(self.content, encoding="utf-8", newline="")
+            with open(save_path, "wb") as file:
+                file.write(self.content.encode("utf-8"))
         except (PermissionError, OSError) as e:
             raise OSError(f"Could not save document: {e}") from e
 
@@ -115,7 +116,8 @@ class Document:
             raise FileNotFoundError(f"Document does not exist: {file_path.name}")
 
         try:
-            file_path.write_text(self.content, encoding="utf-8")
+            with open(file_path, "wb") as file:
+                file.write(self.content.encode("utf-8"))
         except (PermissionError, OSError) as e:
             raise OSError(f"Could not overwrite document: {e}") from e
 
