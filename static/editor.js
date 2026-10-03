@@ -18,7 +18,7 @@ function countWords(text) {
 function updateStats() {
     const count = countWords(textarea.value);
     wordCountEl.textContent = count;
-    readingTimeEl.textContent = (count / WORDS_PER_MINUTE).toFixed(1);
+    readingTimeEl.textContent = (count / WORDS_PER_MINUTE).toFixed(2);
 }
 
 textarea.addEventListener("input", () => {
