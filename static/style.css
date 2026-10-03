@@ -1,10 +1,19 @@
 :root {
-    --ink: #1c1c1e;
-    --muted: #6b6b70;
-    --border: #e3e2e0;
-    --accent: #2f6f4f;
-    --bg: #fbfaf8;
-    --paper: #ffffff;
+    --prussian-blue: #020022;
+    --graphite: #282c2c;
+    --onyx: #0c0b0f;
+    --alabaster-grey: #dcdcdd;
+    --dark-amaranth: #8b1e3f;
+
+    --ink: var(--alabaster-grey);
+    --muted: #929294;
+    --border: rgba(220, 220, 221, 0.16);
+
+    --accent: var(--dark-amaranth);
+    --accent-soft: rgba(139, 30, 63, 0.25);
+
+    --bg: var(--prussian-blue);
+    --paper: var(--graphite);
 }
 
 * {
@@ -54,7 +63,7 @@ h1 {
 .button {
     display: inline-block;
     background: var(--accent);
-    color: #fff;
+    color: var(--alabaster-grey);
     text-decoration: none;
     padding: 0.5rem 1rem;
     border-radius: 6px;
@@ -109,7 +118,7 @@ h1 {
 }
 
 .link-button:hover {
-    color: #b3261e;
+    color: var(--accent);
 }
 
 .editor-toolbar {
@@ -129,6 +138,7 @@ h1 {
 .rename-form input[type="text"] {
     font-family: inherit;
     font-size: 1rem;
+    color: var(--ink);
     border: none;
     background: transparent;
     border-bottom: 1px solid transparent;
@@ -155,13 +165,14 @@ textarea {
     min-height: 60vh;
     resize: vertical;
     border: 1px solid var(--border);
-    background: var(--paper);
+    background: var(--onyx);
     border-radius: 8px;
     padding: 1.75rem;
     font-family: inherit;
     font-size: 1.15rem;
     line-height: 1.7;
     color: var(--ink);
+    caret-color: var(--alabaster-grey);
 }
 
 textarea:focus {
@@ -183,8 +194,9 @@ textarea:focus {
 }
 
 .flash {
-    background: #fff6e5;
-    border: 1px solid #f0d999;
+    background: rgba(139, 30, 63, 0.16);
+    border: 1px solid rgba(139, 30, 63, 0.45);
+    color: var(--alabaster-grey);
     border-radius: 6px;
     padding: 0.75rem 1rem;
     margin-bottom: 1.5rem;
