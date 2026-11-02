@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280, height=720">
+<title>Inanis — how it works</title>
+<style>
+:root {
+    --prussian-blue: #020022;
+    --graphite: #282c2c;
+    --onyx: #0c0b0f;
+    --alabaster-grey: #dcdcdd;
+    --dark-amaranth: #8b1e3f;
+
+    /* Same five colors as plain R,G,B triplets, so any rgba() in this
+       file can vary opacity while still tracing back to one of the
+       colors above — change a hex above and every tinted use follows. */
+    --prussian-blue-rgb: 2, 0, 34;
+    --graphite-rgb: 40, 44, 44;
+    --onyx-rgb: 12, 11, 15;
+    --alabaster-grey-rgb: 220, 220, 221;
+    --dark-amaranth-rgb: 139, 30, 63;
+
+    /* True neutral, kept separate from the brand palette on purpose:
+       elevation shadows stay black regardless of theme, the same way
+       a shadow under a red book and a blue book is still gray-black. */
+    --shadow-rgb: 0, 0, 0;
+
+    /* Semantic roles */
+    --ink: var(--alabaster-grey);
+    --cream: var(--alabaster-grey); /* headline tone — its own token so headings can be tuned separately from body text later */
+    --muted: rgba(var(--alabaster-grey-rgb), 0.62);
+    --border: rgba(var(--alabaster-grey-rgb), 0.16);
+
+    --accent: var(--dark-amaranth);
+    --accent-soft: rgba(var(--dark-amaranth-rgb), 0.25);
+    --accent-text: color-mix(in srgb, var(--dark-amaranth) 55%, var(--alabaster-grey)); /* Dark Amaranth lightened toward Alabaster, for text legibility */
+  --accent-glow: rgba(var(--dark-amaranth-rgb), 0.12);
+
+    /* Text/icon color for anything sitting on a solid accent-filled
+       surface (buttons, filled pills). Dark-amaranth is dark, so this
+       needs to be light for contrast — kept as its own token rather
+       than assuming, since a lighter accent would need a dark one instead. */
+    --on-accent: var(--alabaster-grey);
+
+    --bg: var(--prussian-blue);
+    --paper: var(--graphite);
+
+    --deep-surface: var(--onyx);
+    --track: rgba(var(--onyx-rgb), 0.5);
+
+    --mono: "SF Mono", "Consolas", monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --ease: cubic-bezier(.65,0,.35,1);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+body {
+  display: grid;
+  place-items: center;
+  font-family: var(--sans);
+  color: var(--ink);
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(620px 420px at 22% 82%, var(--accent-glow), transparent 70%),
+    radial-gradient(700px 500px at 84% 18%, rgba(var(--dark-amaranth-rgb), .08), transparent 70%),
+    var(--bg);
+}
+
+#canvas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1280px;
+  height: 720px;
+  margin: -360px 0 0 -640px;
+  transform-origin: 50% 50%;
+}
+
+#stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(var(--alabaster-grey-rgb),.02), transparent 42%, rgba(var(--dark-amaranth-rgb),.025));
+}
+
+.scene {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .6s ease;
+}
+
+.scene.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#start-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background:
+    radial-gradient(520px 360px at 50% 45%, var(--accent-glow), transparent 72%),
+    var(--bg);
+}
+
+#start-overlay.hidden {
+  display: none;
+}
+
+#start-overlay h1 {
+  margin: 0;
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: 38px;
+  letter-spacing: .01em;
+  color: var(--cream);
+}
+
+#play-btn {
+  border: 1px solid rgba(var(--dark-amaranth-rgb),.7);
+  border-radius: 7px;
+  padding: 11px 25px;
+  color: var(--on-accent);
+  background: var(--accent);
+  font: 600 15px var(--sans);
+  cursor: pointer;
+  box-shadow: 0 0 0 5px rgba(var(--dark-amaranth-rgb),.12);
+}
+
+#play-btn:hover { filter: brightness(1.06); }
+
+.hint {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* ---------- Shared ---------- */
+
+.caption {
+  position: absolute;
+  left: 50%;
+  bottom: 76px;
+  transform: translateX(-50%);
+  width: 760px;
+  min-height: 28px;
+  text-align: center;
+  font: 22px/1.45 var(--serif);
+  color: var(--ink);
+  opacity: 1;
+  transition: opacity .35s ease;
+}
+
+.accent-word {
+  color: var(--accent-text);
+}
+
+.diagram {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 1040px;
+  height: 570px;
+  transform: translateX(-50%);
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity .5s ease, transform .5s var(--ease);
+}
+
+.reveal.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.node {
+  position: absolute;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(var(--graphite-rgb),.55), rgba(var(--graphite-rgb),.30));
+  box-shadow: 0 22px 55px rgba(var(--shadow-rgb),.28), inset 0 1px 0 rgba(var(--alabaster-grey-rgb),.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  text-align: center;
+}
+
+.node .label {
+  color: var(--cream);
+  font: 600 15px var(--mono);
+}
+
+.node .sub {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.code-block {
+  margin-top: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(var(--onyx-rgb),.72);
+  color: var(--ink);
+  font: 11px/1.6 var(--mono);
+  text-align: left;
+}
+
+.code-block .hl {
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border-radius: 3px;
+  padding: 1px 3px;
+}
+
+.dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow:
+    0 0 0 4px var(--accent-soft),
+    0 0 22px rgba(var(--dark-amaranth-rgb),.45);
+  transition:
+    left 1.25s var(--ease),
+    top 1.25s var(--ease),
+    opacity .35s ease;
+  z-index: 20;
+}
+
+.dot.hidden { opacity: 0; }
+
+.node-motion {
+  transition:
+    left 1.3s var(--ease),
+    right 1.3s var(--ease),
+    opacity .6s ease,
+    transform 1.3s var(--ease);
+}
+
+/* ---------- Scene 1: continuous intro ---------- */
+
+.term-window {
+  position: absolute;
+  left: 330px;
+  top: 170px;
+  width: 620px;
+  border-radius: 9px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(12px);
+  transform-origin: 50% 50%;
+  box-shadow: 0 28px 70px rgba(var(--shadow-rgb),.52);
+  transition: opacity .85s ease, transform 1.25s var(--ease);
+  z-index: 8;
+}
+
+.term-window.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.term-window.parked {
+  opacity: .93;
+  transform: translate(-455px, -200px) scale(.5);
+}
+
+.term-bar {
+  height: 31px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--graphite);
+}
+
+.term-dot {
+  display: block;
+  flex: 0 0 auto;
+  align-self: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.term-dot.red { background: #ff5f57; }
+.term-dot.green { background: #28c93f; }
+.term-dot.yellow { background: #ffbd2e; }
+
+.term-body {
+  min-height: 168px;
+  padding: 18px 21px;
+  background: var(--onyx);
+  color: var(--ink);
+  font: 13px/1.7 var(--mono);
+}
+
+.term-line {
+  opacity: 0;
+  transition: opacity .38s ease;
+  white-space: pre-wrap;
+}
+
+.term-line.show { opacity: 1; }
+
+.term-line.warn { color: var(--alabaster-grey); }
+
+.intro-browser {
+  position: absolute;
+  left: 360px;
+  top: 190px;
+  width: 560px;
+  height: 330px;
+  border: 1px solid rgba(var(--alabaster-grey-rgb),.22);
+  border-radius: 13px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(42px);
+  background: linear-gradient(135deg, rgba(var(--graphite-rgb),.62), rgba(var(--graphite-rgb),.28));
+  box-shadow: 0 30px 80px rgba(var(--shadow-rgb),.45), inset 0 1px 0 rgba(var(--alabaster-grey-rgb),.24);
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+  transition:
+    opacity .85s ease,
+    transform 1.2s var(--ease);
+  z-index: 10;
+}
+
+.intro-browser.in {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.intro-browser.parked {
+  opacity: 1;
+  transform: translate(-330px, -30px) scale(.60);
+  transform-origin: 0 0;
+}
+
+.browser-bar {
+  height: 39px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid rgba(var(--alabaster-grey-rgb),.14);
+  background: rgba(var(--onyx-rgb),.28);
+}
+
+.browser-dots {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.browser-dots span {
+  display: block;
+  flex: 0 0 auto;
+  align-self: center;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+}
+
+.browser-dots .red { background: #ff5f57; }
+.browser-dots .green { background: #28c93f; }
+.browser-dots .yellow { background: #ffbd2e; }
+
+.browser-url {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid rgba(var(--alabaster-grey-rgb),.13);
+  border-radius: 7px;
+  overflow: hidden;
+  color: var(--muted);
+  background: rgba(var(--onyx-rgb),.30);
+  font: 10px var(--mono);
+  white-space: nowrap;
+}
+
+.browser-page {
+  position: relative;
+  height: 291px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mirrors base.html's header.topbar — the app's own brand bar,
+   distinct from the OS browser chrome above it. */
+.mock-topbar {
+  flex: 0 0 auto;
+  padding: 11px 28px;
+  border-bottom: 1px solid var(--border);
+  color: var(--cream);
+  font: 600 13px var(--serif);
+  letter-spacing: .02em;
+}
+
+/* Mirrors <main> — the padded, page-specific content area. */
+.mock-main {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.home-page, .edit-page {
+  position: absolute;
+  inset: 0;
+  padding: 20px 28px;
+  transition: opacity .45s ease;
+}
+
+.edit-page {
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+}
+
+/* Mirrors .page-header — heading left, button right. */
+.mock-pageheader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mock-h1 {
+  color: var(--cream);
+  font: 600 21px var(--serif);
+}
+
+.new-doc {
+  display: inline-block;
+  border: 1px solid rgba(var(--dark-amaranth-rgb),.6);
+  border-radius: 6px;
+  padding: 8px 14px;
+  color: var(--on-accent);
+  background: var(--accent);
+  font: 600 11px var(--sans);
+  transition: transform .15s ease, box-shadow .25s ease;
+}
+
+.new-doc.hit {
+  transform: scale(.96);
+  box-shadow: 0 0 0 7px rgba(var(--dark-amaranth-rgb),.18);
+}
+
+/* Mirrors .doc-list — NewDoc2 and NewDoc3 already exist, so the next free name is NewDoc4. */
+.mock-list {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.mock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  font: 12px var(--serif);
+}
+
+.mock-del {
+  color: var(--muted);
+  font: 11px var(--sans);
+}
+
+/* Mirrors .empty-state */
+.mock-empty {
+  margin-top: 20px;
+  color: var(--muted);
+  font-style: italic;
+  font-size: 12px;
+}
+
+/* Mirrors .editor-toolbar — rename on the left, stats on the right. */
+.mock-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--sans);
+}
+
+.mock-rename {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mock-rename-input {
+  color: var(--muted); /* disabled for unsaved documents, as in editor.html */
+  font: 13px var(--serif);
+  padding-bottom: 2px;
+  border-bottom: 1px solid transparent;
+}
+
+.mock-rename-btn {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.mock-stats {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/* Mirrors the textarea */
+.mock-textarea {
+  margin-top: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid var(--accent); /* focused, as in the app */
+  border-radius: 8px;
+  padding: 14px 16px;
+  color: var(--muted);
+  font: 12px/1.7 var(--serif);
+  background: rgba(var(--alabaster-grey-rgb), .02);
+}
+
+.mock-caret {
+  display: inline-block;
+  width: 1px;
+  height: 13px;
+  margin-right: 1px;
+  vertical-align: -2px;
+  background: var(--cream);
+  animation: mock-blink 1s steps(1) infinite;
+}
+
+@keyframes mock-blink { 50% { opacity: 0; } }
+
+/* Mirrors .save-row */
+.mock-saverow {
+  margin-top: 12px;
+}
+
+.mock-save-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 600 11px var(--sans);
+  padding: 7px 14px;
+  border-radius: 6px;
+}
+
+.cursor {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  left: 760px;
+  top: 480px;
+  opacity: 0;
+  z-index: 30;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 22 22'%3E%3Cpath d='M2 2 L2 17 L6.5 13 L9.5 19.5 L12.2 18.3 L9.3 12 L15 12 Z' fill='%23dcdcdd' stroke='%23020022' stroke-width='1.2' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,.5));
+  transition: left .75s var(--ease), top .75s var(--ease), opacity .25s ease, transform .12s ease;
+}
+
+.cursor.press {
+  transform: scale(.82);
+}
+
+.ripple {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  margin: -8px;
+  border: 2px solid rgba(var(--dark-amaranth-rgb),.72);
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(.2);
+  pointer-events: none;
+  z-index: 29;
+}
+
+.ripple.go {
+  animation: ripple .65s ease-out;
+}
+
+@keyframes ripple {
+  0% { opacity: .8; transform: scale(.2); }
+  100% { opacity: 0; transform: scale(6); }
+}
+
+#intro-dot {
+  opacity: 0;
+  left: 359px;
+  top: 239px;
+  transition:
+    left 1.2s var(--ease),
+    top 1.2s var(--ease),
+    opacity .3s ease;
+  z-index: 25;
+}
+
+#intro-app {
+  left: 1300px;
+  top: 175px;
+  width: 300px;
+  opacity: 0;
+}
+
+#intro-app.in {
+  left: 430px;
+  opacity: 1;
+}
+
+#intro-app.out {
+  left: 120px;
+  opacity: 0;
+}
+
+#intro-doc {
+  left: 1300px;
+  top: 175px;
+  width: 340px;
+  opacity: 0;
+}
+
+#intro-doc.in {
+  left: 790px;
+  opacity: 1;
+}
+
+.intro-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 65px;
+  width: 790px;
+  transform: translateX(-50%);
+  color: var(--ink);
+  text-align: center;
+  font: 21px/1.45 var(--serif);
+  transition: opacity .3s ease;
+}
+
+.intro-caption .accent-word { color: var(--accent-text); }
+
+/* ---------- Feature scenes ---------- */
+
+.feature-title {
+  position: absolute;
+  left: 50%;
+  top: 75px;
+  transform: translateX(-50%);
+  color: var(--cream);
+  font: 34px var(--serif);
+}
+
+.feature-sub {
+  position: absolute;
+  left: 50%;
+  top: 121px;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.folder {
+  position: absolute;
+  left: 120px;
+  top: 190px;
+  width: 310px;
+}
+
+.folder-tab {
+  margin-bottom: 9px;
+  color: var(--muted);
+  font: 11px var(--mono);
+}
+
+.file-row {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 9px;
+  padding: 10px 13px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--paper);
+  color: var(--ink);
+  font: 12px var(--mono);
+  transition: opacity .3s ease, border-color .3s ease;
+}
+
+.num-hl {
+  border-radius: 3px;
+  padding: 1px 3px;
+  background: var(--accent-soft);
+  transition: background .25s ease, color .25s ease;
+}
+
+.num-hl.hit {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.scan-line {
+  position: absolute;
+  left: 0;
+  top: 37px;
+  width: 310px;
+  height: 2px;
+  opacity: 0;
+  background: var(--accent);
+  box-shadow: 0 0 12px rgba(var(--dark-amaranth-rgb),.45);
+  transition: top 1.55s linear, opacity .3s ease;
+}
+
+.scan-line.show { opacity: 1; }
+
+.calc-box {
+  position: absolute;
+  right: 120px;
+  top: 225px;
+  width: 315px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+  box-shadow: 0 22px 55px rgba(var(--shadow-rgb),.24);
+  font: 12px var(--mono);
+}
+
+.calc-row {
+  display: flex;
+  justify-content: space-between;
+  margin: 7px 0;
+  color: var(--muted);
+}
+
+.calc-result {
+  margin-top: 11px;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+  color: var(--accent-text);
+}
+
+.fork {
+  position: absolute;
+  left: 50%;
+  top: 220px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 45px;
+}
+
+.fork-path {
+  width: 350px;
+  min-height: 180px;
+  padding: 20px;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--paper);
+  box-shadow: 0 20px 50px rgba(var(--shadow-rgb),.22);
+}
+
+.method {
+  color: var(--accent-text);
+  font: 600 14px var(--mono);
+}
+
+.desc {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.file-chip {
+  display: inline-block;
+  margin: 16px 3px 0;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--ink);
+  background: rgba(var(--onyx-rgb),.45);
+  font: 10px var(--mono);
+}
+
+.file-chip.new {
+  border-color: rgba(var(--dark-amaranth-rgb),.6);
+  background: var(--accent-soft);
+}
+
+.sample-text {
+  position: absolute;
+  left: 50%;
+  top: 205px;
+  width: 760px;
+  transform: translateX(-50%);
+  color: var(--ink);
+  text-align: center;
+  font: 26px/1.8 var(--serif);
+}
+
+.word {
+  border-radius: 4px;
+  padding: 1px 3px;
+  transition: background .3s ease, color .3s ease;
+}
+
+.word.counted {
+  background: var(--accent-soft);
+}
+
+.stats {
+  position: absolute;
+  left: 50%;
+  top: 335px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 70px;
+}
+
+.stat {
+  min-width: 95px;
+  text-align: center;
+}
+
+.stat-num {
+  color: var(--accent-text);
+  font: 600 30px var(--mono);
+}
+
+.stat-label {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.feature-caption {
+  position: absolute;
+  left: 50%;
+  bottom: 75px;
+  width: 780px;
+  transform: translateX(-50%);
+  text-align: center;
+  color: var(--ink);
+  font: 20px/1.45 var(--serif);
+}
+
+.closing {
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.closing-wordmark {
+  color: var(--cream);
+  font: 54px var(--serif);
+}
+
+.closing-tagline {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* ---------- Corrections ---------- */
+.tag { font-size: 10px; opacity: 0; color: var(--muted); transition: opacity .3s ease; }
+.file-row.match { border-color: rgba(var(--dark-amaranth-rgb),.7); }
+.file-row.match .tag { opacity: 1; color: var(--accent-text); }
+.file-row.match .num-hl { color: var(--on-accent); background: var(--accent); }
+.file-row.skip { opacity: .5; }
+.file-row.skip .tag { opacity: 1; }
+.chain { margin-top: 14px; }
+.step { display: flex; justify-content: space-between; padding: 6px 10px; border: 1px solid var(--border); border-radius: 5px; background: rgba(var(--onyx-rgb),.45); color: var(--ink); font: 11px var(--mono); }
+.step em { font-style: normal; color: var(--muted); }
+.step em.ok { color: var(--accent-text); }
+.arrow { margin: 3px 0; text-align: center; color: var(--accent-text); font: 12px var(--mono); }
+.note { margin-top: 10px; color: var(--muted); font-size: 11px; }
+.formula { position: absolute; left: 50%; top: 160px; transform: translateX(-50%); color: var(--muted); font: 13px var(--mono); }
+.node.node-motion { transition: left 1.3s var(--ease), right 1.3s var(--ease), opacity .6s ease, transform 1.3s var(--ease), border-color .35s ease, box-shadow .35s ease; }
+.node.lit { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 26px rgba(var(--dark-amaranth-rgb),.5), 0 22px 55px rgba(var(--shadow-rgb),.28); }
+</style>
+</head>
+<body>
+
+<div id="stage">
+
+  <div id="start-overlay">
+    <h1>Inanis — how it works</h1>
+    <button id="play-btn">Play</button>
+    <div class="hint">Press Play, then begin screen recording.</div>
+  </div>
+
+  <div id="canvas">
+
+  <!-- ==================== SCENE 0 ==================== -->
+  <section class="scene closing" id="scene-title">
+    <div>
+      <div class="closing-wordmark">Inanis</div>
+      <div class="closing-tagline">A look under the hood</div>
+    </div>
+  </section>
+
+  <!-- ==================== SCENE 1 ==================== -->
+  <section class="scene" id="scene-intro">
+
+    <div class="term-window" id="term">
+      <div class="term-bar">
+        <span class="term-dot red"></span>
+        <span class="term-dot green"></span>
+        <span class="term-dot yellow"></span>
+      </div>
+      <div class="term-body">
+        <div class="term-line">$ python app.py</div>
+        <div class="term-line">&nbsp;</div>
+        <div class="term-line"> * Serving Flask app 'app'</div>
+        <div class="term-line"> * Debug mode: on</div>
+        <div class="term-line warn">WARNING: This is a development server. Do not use it in a production deployment.</div>
+        <div class="term-line"> * Running on http://127.0.0.1:5000</div>
+      </div>
+    </div>
+
+    <div class="intro-browser" id="intro-browser">
+      <div class="browser-bar">
+        <div class="browser-dots"><span class="red"></span><span class="green"></span><span class="yellow"></span></div>
+        <div class="browser-url" id="browser-url">localhost:5000</div>
+      </div>
+
+      <div class="browser-page">
+        <div class="mock-topbar">Inanis</div>
+        <div class="mock-main">
+          <div class="home-page" id="home-page">
+            <div class="mock-pageheader">
+              <div class="mock-h1">Your documents</div>
+              <div class="new-doc" id="new-doc">New document</div>
+            </div>
+            <div class="mock-list">
+              <div class="mock-row"><span>NewDoc2.txt</span><span class="mock-del">Delete</span></div>
+              <div class="mock-row"><span>NewDoc3.txt</span><span class="mock-del">Delete</span></div>
+            </div>
+          </div>
+
+          <div class="edit-page" id="edit-page">
+            <div class="mock-toolbar">
+              <div class="mock-rename">
+                <span class="mock-rename-input">NewDoc4</span>
+                <span class="mock-rename-btn">Rename</span>
+              </div>
+              <div class="mock-stats">0 words · 0.0 min read</div>
+            </div>
+            <div class="mock-textarea"><span class="mock-caret"></span>Start writing…</div>
+            <div class="mock-saverow"><span class="mock-save-btn">Save</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cursor" id="cursor"></div>
+    <div class="ripple" id="ripple"></div>
+
+    <div class="node node-motion" id="intro-app">
+      <div class="label">app.py</div>
+      <div class="sub">Flask routes · controller layer</div>
+      <div class="code-block reveal">
+        @app.route("<span class="hl">/new</span>")<br>
+        def <span class="hl">new_document</span>():<br>
+        &nbsp;&nbsp;doc = <span class="hl">Document()</span>
+      </div>
+    </div>
+
+    <div class="node node-motion" id="intro-doc">
+      <div class="label">document.py</div>
+      <div class="sub">Document class · naming &amp; files</div>
+      <div class="code-block reveal">
+        Document.<span class="hl">__init__</span>()<br>
+        &nbsp;&nbsp;→ <span class="hl">_next_doc_number()</span><br>
+        &nbsp;&nbsp;→ NewDoc4
+      </div>
+    </div>
+
+    <div class="dot" id="intro-dot"></div>
+
+    <div class="intro-caption" id="intro-caption">Inanis starts with a Flask server.</div>
+  </section>
+
+  <!-- ==================== SCENE 2 ==================== -->
+  <section class="scene" id="scene-naming">
+    <div class="feature-title">Smart naming</div>
+    <div class="feature-sub">Only files named NewDoc plus a number are counted.</div>
+
+    <div class="folder">
+      <div class="folder-tab">Inanis/</div>
+      <div class="file-row" id="row-1"><span>NewDoc<span class="num-hl">2</span>.txt</span><span class="tag">counted</span></div>
+      <div class="file-row" id="row-n"><span>notes.txt</span><span class="tag">ignored</span></div>
+      <div class="file-row" id="row-3"><span>NewDoc<span class="num-hl">3</span>.txt</span><span class="tag">counted</span></div>
+      <div class="scan-line" id="scan"></div>
+    </div>
+
+    <div class="calc-box reveal" id="calc">
+      <div class="calc-row"><span>looks for</span><span class="accent-word">NewDoc + number</span></div>
+      <div class="calc-row"><span>numbers found</span><span>2, 3</span></div>
+      <div class="calc-row"><span>highest</span><span>3</span></div>
+      <div class="calc-row"><span>plus one</span><span>3 + 1 = 4</span></div>
+      <div class="calc-row calc-result"><span>new document</span><span>NewDoc4</span></div>
+    </div>
+
+    <div class="feature-caption">
+      Only files named <span class="accent-word">NewDoc + a number</span> are counted; the highest number plus one becomes the next name.
+    </div>
+  </section>
+
+  <!-- ==================== SCENE 3 ==================== -->
+  <section class="scene" id="scene-save">
+    <div class="feature-title">Save vs overwrite</div>
+    <div class="feature-sub">One creates a file, the other rewrites it.</div>
+
+    <div class="fork">
+      <div class="fork-path reveal" id="fork-save">
+        <div class="method">save_document()</div>
+        <div class="desc">Creates a new file. If the desired path already exists, it finds another available path.</div>
+        <div class="chain">
+          <div class="step reveal"><span>NewDoc4.txt</span><em>already exists</em></div>
+          <div class="arrow reveal">↓</div>
+          <div class="step reveal"><span>NewDoc4(1).txt</span><em>already exists</em></div>
+          <div class="arrow reveal">↓</div>
+          <div class="step reveal"><span>NewDoc4(2).txt</span><em class="ok">created</em></div>
+        </div>
+        <div class="note">The number in (n) keeps rising until a path is free.</div>
+      </div>
+
+      <div class="fork-path reveal" id="fork-overwrite">
+        <div class="method">overwrite()</div>
+        <div class="desc">Writes back to the existing document. No new file is created.</div>
+        <div class="chain">
+          <div class="step reveal"><span>NewDoc4.txt</span><em class="ok">updated in place</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="feature-caption">
+      New documents use <span class="accent-word">save_document()</span>; existing ones use <span class="accent-word">overwrite()</span>.
+    </div>
+  </section>
+
+  <!-- ==================== SCENE 4 ==================== -->
+  <section class="scene" id="scene-words">
+    <div class="feature-title">Word count &amp; reading time</div>
+    <div class="feature-sub">The same content powers both statistics.</div>
+    <div class="formula">Reading time = word count ÷ 200 WPM</div>
+
+    <div class="sample-text" id="sample">
+      <span class="word">The</span>
+      <span class="word">well-known</span>
+      <span class="word">author</span>
+      <span class="word">didn't</span>
+      <span class="word">stop</span>
+      <span class="word">writing,</span>
+      <span class="word">even</span>
+      <span class="word">when</span>
+      <span class="word">the</span>
+      <span class="word">deadline</span>
+      <span class="word">passed</span>
+      <span class="word">and</span>
+      <span class="word">nobody</span>
+      <span class="word">was</span>
+      <span class="word">reading.</span>
+    </div>
+
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-num" id="word-num">0</div>
+        <div class="stat-label">words</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="time-num">0.000</div>
+        <div class="stat-label">minutes</div>
+      </div>
+    </div>
+
+    <div class="feature-caption">
+      Hyphenated and contracted forms count as one word. Each word adds 1 ÷ 200 = 0.005 minutes.
+    </div>
+  </section>
+
+  <!-- ==================== SCENE 5 ==================== -->
+  <section class="scene closing" id="scene-close">
+    <div>
+      <div class="closing-wordmark">Inanis</div>
+      <div class="closing-tagline">A quiet place to write.</div>
+    </div>
+  </section>
+
+  </div><!-- /#canvas -->
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let scale = 1;
+function fit() {
+  scale = Math.min(innerWidth / 1280, innerHeight / 720);
+  $("canvas").style.transform = `scale(${scale})`;
+}
+addEventListener("resize", fit);
+fit();
+
+const sceneIds = [
+  "scene-title",
+  "scene-intro",
+  "scene-naming",
+  "scene-save",
+  "scene-words",
+  "scene-close"
+];
+
+const durations = {
+  "scene-title": 2200,
+  "scene-intro": 29000,
+  "scene-naming": 9000,
+  "scene-save": 9500,
+  "scene-words": 12500,
+  "scene-close": 4000
+};
+
+const fade = 600;
+
+let timers = [];
+let playing = false;
+
+function later(fn, ms) {
+  const id = setTimeout(fn, ms);
+  timers.push(id);
+  return id;
+}
+
+function clearTimers() {
+  timers.forEach(clearTimeout);
+  timers = [];
+}
+
+function showScene(id) {
+  document.querySelectorAll(".scene").forEach(s => s.classList.remove("active"));
+  $(id).classList.add("active");
+}
+
+function resetAll() {
+  clearTimers();
+  document.querySelectorAll(".scene").forEach(s => s.classList.remove("active"));
+
+  $("term").className = "term-window";
+  document.querySelectorAll("#term .term-line").forEach(l => l.classList.remove("show"));
+  $("intro-browser").className = "intro-browser";
+  ["cursor", "ripple", "intro-dot"].forEach(id => { $(id).style.cssText = ""; });
+  $("cursor").className = "cursor";
+  $("ripple").className = "ripple";
+  $("intro-dot").className = "dot";
+  $("new-doc").className = "new-doc";
+  $("home-page").style.opacity = "1";
+  $("edit-page").style.opacity = "0";
+  $("browser-url").textContent = "localhost:5000";
+  $("intro-app").className = "node node-motion";
+  $("intro-doc").className = "node node-motion";
+  document.querySelectorAll(".code-block, .chain .reveal").forEach(c => c.classList.remove("show"));
+  $("intro-caption").style.opacity = "1";
+  $("intro-caption").innerHTML = "Inanis starts with a Flask server.";
+
+  ["row-1", "row-n", "row-3"].forEach(id => { $(id).className = "file-row"; });
+  $("scan").className = "scan-line";
+  $("scan").style.cssText = "";
+  $("calc").className = "calc-box reveal";
+  $("fork-save").className = "fork-path reveal";
+  $("fork-overwrite").className = "fork-path reveal";
+
+  document.querySelectorAll("#sample .word").forEach(w => w.classList.remove("counted"));
+  $("word-num").textContent = "0";
+  $("time-num").textContent = "0.000";
+}
+
+function setIntroCaption(html) {
+  $("intro-caption").style.opacity = "0";
+  later(() => {
+    $("intro-caption").innerHTML = html;
+    $("intro-caption").style.opacity = "1";
+  }, 180);
+}
+
+/* Centre of the "New document" button in stage coordinates. */
+function newDocCenter() {
+  const s = $("canvas").getBoundingClientRect();
+  const b = $("new-doc").getBoundingClientRect();
+  return [(b.left - s.left + b.width / 2) / scale, (b.top - s.top + b.height / 2) / scale];
+}
+
+/* Scene 1 is deliberately one continuous timeline. */
+function animateIntro() {
+  showScene("scene-intro");
+
+  const dot = $("intro-dot");
+  const APP_LEFT = 430, DOC_LEFT = 790;   // final left edges (match #intro-app.in / #intro-doc.in)
+  const centre = (id, left) => {          // dot top-left that puts the 14px dot at the node's centre
+    const e = $(id);
+    return [left + e.offsetWidth / 2 - 7, e.offsetTop + e.offsetHeight / 2 - 7];
+  };
+  const moveDot = (x, y) => { dot.style.left = x + "px"; dot.style.top = y + "px"; };
+
+  later(() => $("term").classList.add("show"), 250);
+  document.querySelectorAll("#term .term-line").forEach((line, i) => later(() => line.classList.add("show"), 700 + i * 380));
+
+  // Terminal slides up and shrinks, staying visible.
+  later(() => $("term").classList.add("parked"), 3200);
+
+  // Browser takes the space the terminal left behind.
+  later(() => { $("intro-browser").classList.add("in"); setIntroCaption("Inanis opens in your browser."); }, 4200);
+
+  // Cursor travels to New document.
+  later(() => {
+    const [x, y] = newDocCenter();
+    $("cursor").style.opacity = "1";
+    $("cursor").style.left = (x - 2) + "px";
+    $("cursor").style.top = (y - 1) + "px";
+  }, 5800);
+
+  // Click.
+  later(() => {
+    const [x, y] = newDocCenter();
+    $("cursor").classList.add("press");
+    $("new-doc").classList.add("hit");
+    $("ripple").style.left = x + "px";
+    $("ripple").style.top = y + "px";
+    $("ripple").classList.remove("go");
+    void $("ripple").offsetWidth;
+    $("ripple").classList.add("go");
+  }, 7300);
+
+  // Homepage becomes the editor state.
+  later(() => {
+    $("browser-url").textContent = "localhost:5000/edit/NewDoc4.txt?is_new=1";
+    $("home-page").style.opacity = "0";
+    $("edit-page").style.opacity = "1";
+    $("cursor").style.opacity = "0";
+    setIntroCaption('Clicking <span class="accent-word">New document</span> sends <span class="accent-word">GET /new</span>; Flask redirects to the editor.');
+  }, 8200);
+
+  // Browser parks and stays visible.
+  later(() => $("intro-browser").classList.add("parked"), 9600);
+
+  // Dot leaves the browser and travels to app.py's left edge.
+  const edgeY = id => $(id).offsetTop + $(id).offsetHeight / 2 - 7;
+  const place = (x, y) => {               // jump to a spot, then fade in
+    dot.style.transition = "none"; dot.style.opacity = "0";
+    moveDot(x, y); void dot.offsetWidth;
+    dot.style.transition = ""; dot.style.opacity = "1";
+  };
+  later(() => {
+    const b = $("intro-browser").getBoundingClientRect(), st = $("canvas").getBoundingClientRect();
+    place((b.right - st.left) / scale - 7, (b.top - st.top + b.height / 2) / scale - 7);
+    moveDot(APP_LEFT - 7, edgeY("intro-app"));
+    setIntroCaption('The request travels to <span class="accent-word">app.py</span>, the Flask route layer.');
+  }, 12200);
+
+  // app.py enters from the right at the same time the dot starts moving.
+  later(() => $("intro-app").classList.add("in"), 12200);
+
+  // Dot meets app.py: its border lights up and the dot is absorbed.
+  later(() => {
+    $("intro-app").classList.add("lit");
+    $("intro-app").querySelector(".code-block").classList.add("show");
+    dot.style.opacity = "0";
+  }, 13500);
+
+  later(() => {
+    setIntroCaption('<span class="accent-word">new_document()</span> creates a <span class="accent-word">Document()</span>.');
+  }, 16200);
+
+  // Handoff: dot re-emerges from app.py's other edge, doc enters and its box appears at the same moment.
+  later(() => {
+    place(APP_LEFT + $("intro-app").offsetWidth - 7, edgeY("intro-app"));
+    moveDot(DOC_LEFT - 7, edgeY("intro-doc"));
+    $("intro-doc").classList.add("in");
+    $("intro-doc").querySelector(".code-block").classList.add("show");
+    $("intro-app").classList.remove("lit");
+    $("intro-app").classList.replace("in", "out");
+    setIntroCaption('The route hands over to the <span class="accent-word">Document</span> class in document.py.');
+  }, 20200);
+
+  // Dot reaches document.py: its border lights up and the dot is absorbed.
+  later(() => { $("intro-doc").classList.add("lit"); dot.style.opacity = "0"; }, 21500);
+
+  later(() => {
+    setIntroCaption('<span class="accent-word">__init__()</span> calls <span class="accent-word">_next_doc_number()</span> to choose NewDoc4.');
+  }, 25000);
+
+}
+
+function animateNaming() {
+  showScene("scene-naming");
+  const scan = $("scan");
+  scan.style.transition = "top .55s var(--ease), opacity .3s ease";
+  later(() => { scan.classList.add("show"); scan.style.top = "38px"; }, 300);
+  later(() => $("row-1").classList.add("match"), 850);
+  later(() => { scan.style.top = "83px"; }, 1150);
+  later(() => $("row-n").classList.add("skip"), 1700);
+  later(() => { scan.style.top = "128px"; }, 1950);
+  later(() => $("row-3").classList.add("match"), 2500);
+  later(() => scan.classList.remove("show"), 2750);
+  later(() => $("calc").classList.add("show"), 3300);
+}
+
+function animateSave() {
+  showScene("scene-save");
+  later(() => $("fork-save").classList.add("show"), 350);
+  later(() => $("fork-overwrite").classList.add("show"), 950);
+  document.querySelectorAll("#fork-save .chain .reveal").forEach((el, i) => later(() => el.classList.add("show"), 1500 + i * 600));
+  later(() => $("fork-overwrite").querySelector(".chain .reveal").classList.add("show"), 2100);
+}
+
+function animateWords() {
+  showScene("scene-words");
+  document.querySelectorAll("#sample .word").forEach((word, i) => {
+    later(() => {
+      word.classList.add("counted");
+      const count = i + 1;
+      $("word-num").textContent = count;
+      $("time-num").textContent = (count / 200).toFixed(3);
+    }, 450 + i * 470);
+  });
+}
+
+function animateTitle() {
+  showScene("scene-title");
+}
+
+function animateClose() {
+  showScene("scene-close");
+}
+
+function animateScene(id) {
+  if (id === "scene-title") animateTitle();
+  if (id === "scene-intro") animateIntro();
+  if (id === "scene-naming") animateNaming();
+  if (id === "scene-save") animateSave();
+  if (id === "scene-words") animateWords();
+  if (id === "scene-close") animateClose();
+}
+
+function runScene(index) {
+  if (index >= sceneIds.length) {
+    playing = false;
+    return;
+  }
+
+  const id = sceneIds[index];
+  animateScene(id);
+
+  const next = durations[id];
+
+  if (index < sceneIds.length - 1) {
+    later(() => {
+      runScene(index + 1);
+    }, next + fade);
+  } else {
+    later(() => { playing = false; }, next);
+  }
+}
+
+function start() {
+  if (playing) return;
+  playing = true;
+
+  resetAll();
+  $("start-overlay").classList.add("hidden");
+  runScene(0);
+}
+
+$("play-btn").addEventListener("click", start);
+</script>
+</body>
+</html>

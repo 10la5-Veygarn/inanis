@@ -13,11 +13,10 @@ While brainstorming ideas for the CS50P final project, I thought of many differe
 
 The editor has a pretty simple framework, which revolves around a few core functions. The `document.py` file contains the 'Document' class, which is the basic document model and contains the filesystem operations. The main functions are:
 
-- `from_file()` - opens a document from the default directory, reads its properties, and initializes a document object based on the file name and content.
+- `from_file()` - creates a document object from a file on the filesystem. It reads the file, validates the name and content, and initializes a document object with the file path and content.
 - `save_document()` - saves the document to the default directory. It checks for file existence, name availability and OS permissions. It also validates the name and content before saving. The default encoding is UTF-8 (not changeable for now).
 - `delete_document()` - deletes the document from the default directory. It first gets the file path from the name, checks for errors, and then deletes the file.
 - `rename()` - renames the document to a new name. It first gets the file path from the old name, validates the new name, checks for errors, and then renames the file. It also adjusts the document object's properties to reflect the new name and file path.
-- `from_file()` - creates a document object from a file on the filesystem. It reads the file, validates the name and content, and initializes a document object with the file path and content.
 - `list_documents()` - lists all documents in the default directory.
 - A bunch of other functions like `word_counter()`, `overwrite()`, `reading_time()`, `exists()` etc.
 
@@ -27,8 +26,8 @@ The editor has a pretty simple framework, which revolves around a few core funct
 
 The `app.py` file is the main Flask application file, which contains the routes and logic for the web interface. It works with the `document.py` file to handle document operations and serves the HTML templates and static files. It contains both path-based and method-based routing. The main functions are:
 
-- `new_document()` - creates a new document object in memory and redirects to /edit/<filename>?is_new=1. (Note: This is a bit of a fragile system since the file is not saved to the filesystem till you click save. You might lose data if you close the port or the browser page before saving.)
-- `edit()` - serves the edit page for a document. If the document is new (like above), it will initialize the document object and redirect to /edit/<filename>. If not, it will read the document properties and pass them to the document object. This also initializes reading_time().
+- `new_document()` - creates a new document object in memory and redirects to /edit/\<filename>?is_new=1. (Note: This is a bit of a fragile system since the file is not saved to the filesystem till you click save. You might lose data if you close the port or the browser page before saving.)
+- `edit()` - serves the edit page for a document. If the document is new (like above), it will initialize the document object and redirect to /edit/\<filename>. If not, it will read the document properties and pass them to the document object. This also initializes reading_time().
 - `save_document()` - saves the document to the filesystem. This is a POST request. It first gets the args from the request, then either saves the new document or overwrites the existing one with new content.
 - `delete_document()` - deletes a document from the filesystem. This is also a POST request. It gets the various details from the document object, tracks down the file, and deletes it.
 - `rename_document()` - renames a document on the filesystem. This is also a POST request. It gets the new name from the request and renames the file.
@@ -44,6 +43,9 @@ The application stores documents in:
 `~/Documents/Inanis`
 
 The `Document` class currently supports `.txt` files.
+
+## Demo
+
 
 ## Prerequisites
 
