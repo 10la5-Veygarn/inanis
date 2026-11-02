@@ -45,7 +45,7 @@ The application stores documents in:
 The `Document` class currently supports `.txt` files.
 
 ## Demo
-[![Watch the Inanis demo](media/cover.png)](https://10la5-Veygarn.github.io/inanis/demo.html)
+https://github.com/user-attachments/assets/d51a2253-c0c0-482c-a1cc-3dbd0a14abc4
 
 [Watch the full demo](https://10la5-Veygarn.github.io/inanis/demo.html)
 
